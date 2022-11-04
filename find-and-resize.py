@@ -13,7 +13,7 @@ import configparser
 import logging
 import logging.config
 import shutil
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 logging.config.fileConfig(fname='logging.ini', disable_existing_loggers=False)
@@ -22,25 +22,65 @@ logger = logging.getLogger('resize');
 
 config = configparser.ConfigParser()
 config.read('find-and-resize.ini')
-basewidth = int(config['image']['basewidth'])
+# Maximal width or heigth
+max_threshold_size = int(config['image']['max_threshold_size'])
 
 
-def resize_image(img_file, img_file_resized):
+def get_file_size(file_path, unit='bytes'):
+    file_size = os.path.getsize(file_path)
+    exponents_map = {'bytes': 0, 'kb': 1, 'mb': 2, 'gb': 3}
+    if unit not in exponents_map:
+        raise ValueError("Must select from \
+        ['bytes', 'kb', 'mb', 'gb']")
+    else:
+        size = file_size / 1024 ** exponents_map[unit]
+        return round(size, 3)
+
+
+def get_new_size(width, height, max_threshold_size):
+    width_new = max_threshold_size / max(width, height) * width
+    height_new = max_threshold_size / max(width, height) * height
+    return (int(width_new), int(height_new))
+
+
+def resize_image(img_file):
+    EXIF_ORIENTATION = 0x0112
+
+    # Original file size
+    img_file_size_old = get_file_size(img_file, 'kb');
+
     # fullsized image
     img = Image.open(img_file)
-    img_width, img_hsize = img.size
+    code = img.getexif().get(EXIF_ORIENTATION, 1)
+    if code and code != 1:
+        logger.info('ROTATE "%s"; EXIF rotation code: %s' % (img_file, code))
+        img = ImageOps.exif_transpose(img)
+        img.save(img_file)
 
-    # Skip if width is smaller or equal as basewidth
-    if img_width <= basewidth:
-        return logger.info('SKIP converting picture "%s"; img_width: %s' % (img_file, img_width))
+    # Image size
+    img_wsize, img_hsize = img.size
+    # New image size
+    img_wsize_new, img_hsize_new = get_new_size(img_wsize, img_hsize, max_threshold_size)
 
-    wpercent = (basewidth / float(img_width))
-    hsize = int((float(img_hsize) * float(wpercent)))
-    img = img.resize((basewidth, hsize), Image.ANTIALIAS)
-    logger.info('"%s" [RESIZE]-> "%s"' % (img_file, img_file_resized))
-    img.save(img_file_resized)
-    logger.info('Move "%s" -> "%s"' % (img_file_resized, img_file))
-    shutil.move(img_file_resized, img_file)
+    resize_ratio = (float(img_wsize) / img_wsize_new)
+
+    # Skip if width or heigth is smaller or equal as max_threshold_size
+    if img_wsize <= img_wsize_new:
+        return logger.info('SKIP "%s" %skB %sx%s -> %sx%s (resize_ratio %s)' %
+            (img_file, img_file_size_old, img_wsize, img_hsize, str(img_wsize_new), str(img_hsize_new), str(resize_ratio)))
+
+    img = img.resize((img_wsize_new, img_hsize_new), Image.ANTIALIAS)
+    img.save(img_file, quality=50)
+    img.close()
+
+    # New file size
+    img_file_size_new = get_file_size(img_file, 'kb');
+    resize_ratio_file_size = (img_file_size_old / img_file_size_new)
+
+    logger.info('RESIZE "%s" %skB %sx%s -> %skB %sx%s (file size ratio %s; resize ratio %s)' %
+        (img_file, img_file_size_old, img_wsize, img_hsize, img_file_size_new,
+        str(img_wsize_new), str(img_hsize_new), str(resize_ratio_file_size),
+        str(resize_ratio)))
 
 
 def main():
@@ -62,9 +102,7 @@ def main():
             if file.endswith(tuple(formats)):
                 img_file = os.path.join(path, file)
                 if filetype.is_image(img_file):
-                    resize_image(img_file, os.path.join(path_tmp, file))
-            else:
-                logger.info('Invalid "%s"' % os.path.join(path, file))
+                    resize_image(img_file)
 
 
 if __name__== "__main__":
