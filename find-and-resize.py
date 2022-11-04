@@ -12,6 +12,7 @@ import os
 import configparser
 import logging
 import logging.config
+import shutil
 from PIL import Image
 
 
@@ -39,7 +40,7 @@ def resize_image(img_file, img_file_resized):
     logger.info('"%s" [RESIZE]-> "%s"' % (img_file, img_file_resized))
     img.save(img_file_resized)
     logger.info('Move "%s" -> "%s"' % (img_file_resized, img_file))
-    os.rename(img_file_resized, img_file)
+    shutil.move(img_file_resized, img_file)
 
 
 def main():
