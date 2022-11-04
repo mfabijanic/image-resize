@@ -1,18 +1,21 @@
 # Dependencies
 
-Install Pillow
+Install dependencies in virtualenv "otobo"
 
-Debian
-```sh
-$ sudo apt install python3-pil
+Create virtualenv "otobo" in $HOME/.virtualenv
+```
+mkdir ~/.virtualenv
+cd ~/.virtualenv
+virtualenv -p python3 otobo
 ```
 
-RHEL
-```sh
-$ sudo dnf install python3-pillow
+Activate virtualenv otobo
+```
+source $HOME/.virtualenv/otobo/bin/activate
 ```
 
-Python virtual environment
+Install filetype and Pillow
 ```sh
-$ python3 -m pip install Pillow
+pip3 install filetype
+pip3 install Pillow
 ```

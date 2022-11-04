@@ -2,7 +2,7 @@
 # Resize image files in directory
 #
 # Used for resize OTOBO Helpdesk images in articles that are saved on filesystem.
-# OTOBO articles directory: /opt/otobo/articles
+# OTOBO articles directory: /opt/otobo/var/articles
 #
 # Author: Matej Fabijanic <root4unix@gmail.com>
 #
